@@ -6,6 +6,8 @@ struct AccountManagerView: View {
     @State private var accountToDelete: CloudAccount?
     @State private var isAddingAccount = false
     @State private var selectedAccountID: UUID?
+    @State private var isSettingsExpanded = false
+    @State private var isHoveringHeader = false
 
     var body: some View {
         NavigationSplitView {
@@ -29,36 +31,62 @@ struct AccountManagerView: View {
 
                 Divider()
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("General Settings")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Slider(value: $store.refreshIntervalMinutes, in: 5...360, step: 5) {
-                            Text("Auto Refresh")
-                                .font(.callout.weight(.medium))
-                        } minimumValueLabel: {
-                            Text("5m").font(.caption2)
-                        } maximumValueLabel: {
-                            Text("6h").font(.caption2)
+                VStack(spacing: 0) {
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                            isSettingsExpanded.toggle()
                         }
-
-                        Text("Interval: \(Int(store.refreshIntervalMinutes)) minutes")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    } label: {
+                        VStack(spacing: 4) {
+                            Image(systemName: isSettingsExpanded ? "chevron.down" : "chevron.up")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(isHoveringHeader ? .primary : .secondary)
+                            
+                            Text("General Settings")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(isHoveringHeader ? .primary : .secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(isHoveringHeader ? Color.secondary.opacity(0.08) : Color.clear)
+                        .contentShape(Rectangle())
                     }
-
-                    Picker("Currency", selection: $store.selectedCurrency) {
-                        Text("Euro (€)").tag("EUR")
-                        Text("US Dollar ($)").tag("USD")
-                        Text("British Pound (£)").tag("GBP")
-                        Text("Japanese Yen (¥)").tag("JPY")
-                        Text("Swiss Franc (CHF)").tag("CHF")
+                    .buttonStyle(.plain)
+                    .onHover { hovering in
+                        withAnimation(.easeOut(duration: 0.15)) {
+                            isHoveringHeader = hovering
+                        }
                     }
-                    .pickerStyle(.menu)
+                    
+                    if isSettingsExpanded {
+                        VStack(alignment: .leading, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Slider(value: $store.refreshIntervalMinutes, in: 5...360, step: 5) {
+                                    Text("Auto Refresh")
+                                        .font(.callout.weight(.medium))
+                                } minimumValueLabel: {
+                                    Text("5m").font(.caption2)
+                                } maximumValueLabel: {
+                                    Text("6h").font(.caption2)
+                                }
+
+                                Text("Interval: \(Int(store.refreshIntervalMinutes)) minutes")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Picker("Currency", selection: $store.selectedCurrency) {
+                                Text("Euro (€)").tag("EUR")
+                                Text("US Dollar ($)").tag("USD")
+                                Text("British Pound (£)").tag("GBP")
+                                Text("Japanese Yen (¥)").tag("JPY")
+                                Text("Swiss Franc (CHF)").tag("CHF")
+                            }
+                            .pickerStyle(.menu)
+                        }
+                        .padding([.horizontal, .bottom], 16)
+                    }
                 }
-                .padding(16)
                 .background(.background)
             }
             .navigationSplitViewColumnWidth(min: 300, ideal: 350, max: 450)

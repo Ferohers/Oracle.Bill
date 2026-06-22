@@ -1,0 +1,79 @@
+# ========================
+# Oracle Bill — .gitignore
+# ========================
+
+# ── Distribution & Build Artifacts ──────────────────────────────────────────
+dist/
+build/
+*.dmg
+*.zip
+*.pkg
+*.ipa
+
+# ── Xcode Derived Data & Archives ───────────────────────────────────────────
+DerivedData/
+*.xcarchive
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+xcuserdata/
+
+# ── Xcode Build Intermediates ────────────────────────────────────────────────
+*.o
+*.d
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+# ── Swift Package Manager ────────────────────────────────────────────────────
+.build/
+.swiftpm/
+Package.resolved
+
+# ── Sensitive & Secret Files ─────────────────────────────────────────────────
+# OCI private keys — NEVER commit these
+*.pem
+*.p8
+*.key
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+
+# OCI config files that may contain secrets
+.oci/
+oci_config
+config
+
+# Environment / secrets files
+.env
+.env.*
+*.secret
+secrets.json
+
+# ── macOS System Files ────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+
+# ── CocoaPods (if ever added) ─────────────────────────────────────────────────
+Pods/
+Podfile.lock
+
+# ── Fastlane (if ever added) ─────────────────────────────────────────────────
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# ── Temporary / Editor Files ──────────────────────────────────────────────────
+*.swp
+*.swo
+*~
+.idea/
+.vscode/

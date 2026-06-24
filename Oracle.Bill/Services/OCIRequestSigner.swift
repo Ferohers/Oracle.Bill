@@ -88,8 +88,17 @@ private enum PrivateKeyLoader {
     }
 
     private static func derData(fromPEM pem: String) throws -> Data {
-        let lines = pem.components(separatedBy: .newlines)
-            .filter { !$0.hasPrefix("-----BEGIN") && !$0.hasPrefix("-----END") }
+        let allLines = pem.components(separatedBy: .newlines)
+
+        // Find the bounds of the first PEM block so trailing metadata
+        // appended by Oracle's console (e.g. "OCI_API_KEY") is ignored.
+        guard let beginIndex = allLines.firstIndex(where: { $0.hasPrefix("-----BEGIN") }),
+              let endIndex   = allLines.firstIndex(where: { $0.hasPrefix("-----END") }),
+              endIndex > beginIndex else {
+            throw OCIRequestSigningError.unsupportedPrivateKey
+        }
+
+        let lines = allLines[(beginIndex + 1)..<endIndex]
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .joined()
 

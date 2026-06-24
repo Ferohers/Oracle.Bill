@@ -77,3 +77,6 @@ fastlane/test_output
 *~
 .idea/
 .vscode/
+
+# ── Build Scripts ─────────────────────────────────────────────────────────────
+build_release.sh

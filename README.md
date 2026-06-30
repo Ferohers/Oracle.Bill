@@ -120,7 +120,7 @@ This script will:
 
 ---
 
-## Signed & Notiarized Releases 
+## Signed & Notarized Releases 
 
 [Github Releases](https://github.com/Ferohers/Oracle.Bill/releases)
 

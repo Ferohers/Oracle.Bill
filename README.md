@@ -120,6 +120,10 @@ This script will:
 
 ---
 
+## Signed & Notiarized Releases 
+
+[Github Releases](https://github.com/Ferohers/Oracle.Bill/releases)
+
 ## Security & Privacy
 
 - **Outbound Connections**: The app requests sandbox outgoing network permissions solely to query the official OCI Usage API (`https://usageapi.<region>.oci.oraclecloud.com`) or your configured custom gateway/proxy endpoint.

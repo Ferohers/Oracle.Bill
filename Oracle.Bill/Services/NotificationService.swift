@@ -33,13 +33,13 @@ struct UserNotificationService: SpendNotificationing {
     private func notifyAccountIfNeeded(account: CloudAccount, snapshot: CostSnapshot) {
         guard account.notificationsEnabled,
               let limit = account.warningAmountUSD,
-              snapshot.amountUSD >= limit else {
+              snapshot.amount >= limit else {
             return
         }
 
         let content = UNMutableNotificationContent()
         content.title = "\(account.displayName) reached its Oracle spend warning"
-        content.body = "\(MoneyFormatter.string(from: snapshot.amountUSD)) of \(MoneyFormatter.string(from: limit)) this month."
+        content.body = "\(MoneyFormatter.string(from: snapshot.amount, currency: snapshot.currency)) of \(MoneyFormatter.string(from: limit, currency: snapshot.currency)) this month."
         content.sound = .default
 
         let request = UNNotificationRequest(
@@ -55,14 +55,14 @@ struct UserNotificationService: SpendNotificationing {
             guard let preference = account.resourcePreferences[resource.preferenceKey],
                   preference.notificationsEnabled,
                   let limit = preference.warningAmountUSD,
-                  resource.amountUSD >= limit else {
+                  resource.amount >= limit else {
                 continue
             }
 
             let displayName = preference.displayName?.isEmpty == false ? preference.displayName ?? resource.displayName : resource.displayName
             let content = UNMutableNotificationContent()
             content.title = "\(displayName) reached its Oracle spend warning"
-            content.body = "\(MoneyFormatter.string(from: resource.amountUSD)) of \(MoneyFormatter.string(from: limit)) this month."
+            content.body = "\(MoneyFormatter.string(from: resource.amount, currency: resource.currency)) of \(MoneyFormatter.string(from: limit, currency: resource.currency)) this month."
             content.sound = .default
 
             let request = UNNotificationRequest(

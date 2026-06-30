@@ -79,10 +79,11 @@ struct OracleUsageService: OracleUsageFetching {
         }
 
         let decoded = try JSONDecoder.oracleBill.decode(UsageAPIResponse.self, from: data)
-        let amount = try decoded.monthToDateUSDAmount()
-        let resources = try decoded.resourceCosts()
+        let (amount, currency) = decoded.totalAmountAndCurrency()
+        let resources = decoded.resourceCosts()
         return CostSnapshot(
-            amountUSD: amount,
+            amount: amount,
+            currency: currency,
             periodStart: period.start,
             periodEnd: period.end,
             lastUpdated: Date(),
@@ -175,20 +176,28 @@ private struct UsageAPIRequest: Encodable {
 private struct UsageAPIResponse: Decodable {
     var items: [UsageAPIItem]
 
-    func monthToDateUSDAmount() throws -> Decimal {
-        try items.reduce(Decimal.zero) { total, item in
-            total + (try item.validatedAmount())
+    /// Returns the total billed amount and the currency code detected from the response items.
+    /// OCI bills an entire tenancy in a single home currency, so all items share the same currency.
+    func totalAmountAndCurrency() -> (amount: Decimal, currency: String?) {
+        var total = Decimal.zero
+        var detectedCurrency: String?
+        for item in items {
+            total += item.rawAmount()
+            if detectedCurrency == nil, let c = item.currency {
+                detectedCurrency = c.uppercased()
+            }
         }
+        return (total, detectedCurrency)
     }
 
-    func resourceCosts() throws -> [ResourceCostSnapshot] {
-        try items.compactMap { item in
-            let amount = try item.validatedAmount()
-
+    func resourceCosts() -> [ResourceCostSnapshot] {
+        items.compactMap { item in
+            let amount = item.rawAmount()
             return ResourceCostSnapshot(
                 resourceId: item.resourceId,
                 displayName: item.resourceName ?? item.resourceId ?? item.service ?? "Oracle resource",
-                amountUSD: amount
+                amount: amount,
+                currency: item.currency?.uppercased()
             )
         }
         .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
@@ -222,13 +231,10 @@ private struct UsageAPIItem: Decodable {
         service = try container.decodeIfPresent(String.self, forKey: .service)
     }
 
-    func validatedAmount() throws -> Decimal {
-        let expectedCurrency = UserDefaults.standard.string(forKey: "selectedCurrency") ?? "EUR"
-        if let currency, currency.uppercased() != expectedCurrency.uppercased() {
-            throw OracleUsageError.unsupportedCurrency(currency)
-        }
-
-        return attributedCost ?? computedAmount ?? .zero
+    /// Returns the raw billed amount without any currency validation.
+    /// OCI may bill in any home currency (USD, SGD, EUR, etc.) depending on the tenancy region.
+    func rawAmount() -> Decimal {
+        attributedCost ?? computedAmount ?? .zero
     }
 }
 
@@ -241,7 +247,6 @@ enum OracleUsageError: LocalizedError {
     case incompleteConfiguration
     case invalidResponse
     case requestFailed(Int, String?)
-    case unsupportedCurrency(String)
 
     var errorDescription: String? {
         switch self {
@@ -253,8 +258,6 @@ enum OracleUsageError: LocalizedError {
             "The usage endpoint returned an invalid response."
         case .requestFailed(let statusCode, let message):
             message.map { "OCI Usage API failed (\(statusCode)): \($0)" } ?? "OCI Usage API failed with status \(statusCode)."
-        case .unsupportedCurrency(let currency):
-            "OCI returned \(currency), but this app is configured for \(UserDefaults.standard.string(forKey: "selectedCurrency") ?? "EUR") display."
         }
     }
 }
@@ -296,7 +299,7 @@ private struct HistoricalUsageAPIResponse: Decodable {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM yyyy"
 
-        var monthPoints: [String: (date: Date, amount: Decimal)] = [:]
+        var monthPoints: [String: (date: Date, amount: Decimal, currency: String?)] = [:]
         let calendar = Calendar(identifier: .gregorian)
         var utcCalendar = calendar
         utcCalendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
@@ -307,26 +310,25 @@ private struct HistoricalUsageAPIResponse: Decodable {
                 let monthString = formatter.string(from: date)
                 let components = utcCalendar.dateComponents([.year, .month], from: date)
                 if let startOfMonth = utcCalendar.date(from: components) {
-                    monthPoints[monthString] = (startOfMonth, .zero)
+                    monthPoints[monthString] = (startOfMonth, .zero, nil)
                 }
             }
         }
 
         for item in items {
-            guard let amount = try? item.validatedAmount(),
-                  let startDate = item.timeUsageStarted else {
-                continue
-            }
+            guard let startDate = item.timeUsageStarted else { continue }
+            let amount = item.rawAmount()
             let monthString = formatter.string(from: startDate)
             let components = utcCalendar.dateComponents([.year, .month], from: startDate)
             if let startOfMonth = utcCalendar.date(from: components) {
-                let existing = monthPoints[monthString] ?? (startOfMonth, .zero)
-                monthPoints[monthString] = (startOfMonth, existing.amount + amount)
+                let existing = monthPoints[monthString] ?? (startOfMonth, .zero, nil)
+                let currency = existing.currency ?? item.currency?.uppercased()
+                monthPoints[monthString] = (startOfMonth, existing.amount + amount, currency)
             }
         }
 
         return monthPoints.map { key, value in
-            HistoricalSpendPoint(month: key, amountUSD: value.amount, date: value.date)
+            HistoricalSpendPoint(month: key, amount: value.amount, currency: value.currency, date: value.date)
         }
         .sorted { $0.date < $1.date }
     }
@@ -353,12 +355,9 @@ private struct HistoricalUsageItem: Decodable {
         timeUsageStarted = try container.decodeIfPresent(Date.self, forKey: .timeUsageStarted)
     }
 
-    func validatedAmount() throws -> Decimal {
-        let expectedCurrency = UserDefaults.standard.string(forKey: "selectedCurrency") ?? "EUR"
-        if let currency, currency.uppercased() != expectedCurrency.uppercased() {
-            throw OracleUsageError.unsupportedCurrency(currency)
-        }
-        return attributedCost ?? computedAmount ?? .zero
+    /// Returns the raw billed amount without any currency validation.
+    func rawAmount() -> Decimal {
+        attributedCost ?? computedAmount ?? .zero
     }
 }
 

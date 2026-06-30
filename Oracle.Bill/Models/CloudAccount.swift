@@ -76,21 +76,128 @@ struct ResourcePreference: Codable, Equatable {
 }
 
 struct CostSnapshot: Codable, Equatable {
-    var amountUSD: Decimal
+    /// The billed amount in whatever currency OCI returns for this tenancy.
+    var amount: Decimal
+    /// ISO 4217 currency code as returned by OCI (e.g. "USD", "SGD", "EUR").
+    /// `nil` when the currency is unknown (e.g. preview data or old cached snapshots).
+    var currency: String?
     var periodStart: Date
     var periodEnd: Date
     var lastUpdated: Date
     var source: SpendDataSource
-    var resources: [ResourceCostSnapshot] = []
+    var resources: [ResourceCostSnapshot]
+
+    // MARK: - Backward-compatible decoding
+
+    enum CodingKeys: String, CodingKey {
+        case amount
+        case amountUSD   // legacy key — kept so old persisted JSON can still be read
+        case currency
+        case periodStart
+        case periodEnd
+        case lastUpdated
+        case source
+        case resources
+    }
+
+    init(
+        amount: Decimal,
+        currency: String? = nil,
+        periodStart: Date,
+        periodEnd: Date,
+        lastUpdated: Date,
+        source: SpendDataSource,
+        resources: [ResourceCostSnapshot] = []
+    ) {
+        self.amount = amount
+        self.currency = currency
+        self.periodStart = periodStart
+        self.periodEnd = periodEnd
+        self.lastUpdated = lastUpdated
+        self.source = source
+        self.resources = resources
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Prefer the new "amount" key; fall back to the legacy "amountUSD" key
+        if let newAmount = try container.decodeIfPresent(Decimal.self, forKey: .amount) {
+            amount = newAmount
+        } else {
+            amount = try container.decode(Decimal.self, forKey: .amountUSD)
+        }
+        currency = try container.decodeIfPresent(String.self, forKey: .currency)
+        periodStart = try container.decode(Date.self, forKey: .periodStart)
+        periodEnd = try container.decode(Date.self, forKey: .periodEnd)
+        lastUpdated = try container.decode(Date.self, forKey: .lastUpdated)
+        source = try container.decode(SpendDataSource.self, forKey: .source)
+        resources = try container.decodeIfPresent([ResourceCostSnapshot].self, forKey: .resources) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(amount, forKey: .amount)
+        try container.encodeIfPresent(currency, forKey: .currency)
+        try container.encode(periodStart, forKey: .periodStart)
+        try container.encode(periodEnd, forKey: .periodEnd)
+        try container.encode(lastUpdated, forKey: .lastUpdated)
+        try container.encode(source, forKey: .source)
+        try container.encode(resources, forKey: .resources)
+    }
 }
 
 struct ResourceCostSnapshot: Codable, Equatable, Identifiable {
     var resourceId: String?
     var displayName: String
-    var amountUSD: Decimal
+    /// The billed amount in whatever currency OCI returns for this tenancy.
+    var amount: Decimal
+    /// ISO 4217 currency code as returned by OCI.
+    var currency: String?
 
     var id: String {
         resourceId ?? displayName
+    }
+
+    // MARK: - Backward-compatible decoding
+
+    enum CodingKeys: String, CodingKey {
+        case resourceId
+        case displayName
+        case amount
+        case amountUSD   // legacy key
+        case currency
+    }
+
+    init(
+        resourceId: String? = nil,
+        displayName: String,
+        amount: Decimal,
+        currency: String? = nil
+    ) {
+        self.resourceId = resourceId
+        self.displayName = displayName
+        self.amount = amount
+        self.currency = currency
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        resourceId = try container.decodeIfPresent(String.self, forKey: .resourceId)
+        displayName = try container.decode(String.self, forKey: .displayName)
+        if let newAmount = try container.decodeIfPresent(Decimal.self, forKey: .amount) {
+            amount = newAmount
+        } else {
+            amount = try container.decode(Decimal.self, forKey: .amountUSD)
+        }
+        currency = try container.decodeIfPresent(String.self, forKey: .currency)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(resourceId, forKey: .resourceId)
+        try container.encode(displayName, forKey: .displayName)
+        try container.encode(amount, forKey: .amount)
+        try container.encodeIfPresent(currency, forKey: .currency)
     }
 }
 
@@ -111,6 +218,46 @@ enum AccountStatus: Codable, Equatable {
 struct HistoricalSpendPoint: Codable, Identifiable, Equatable {
     var id: String { month }
     var month: String
-    var amountUSD: Decimal
+    /// The billed amount in whatever currency OCI returns for this tenancy.
+    var amount: Decimal
+    /// ISO 4217 currency code as returned by OCI.
+    var currency: String?
     var date: Date
+
+    // MARK: - Backward-compatible decoding
+
+    enum CodingKeys: String, CodingKey {
+        case month
+        case amount
+        case amountUSD   // legacy key
+        case currency
+        case date
+    }
+
+    init(month: String, amount: Decimal, currency: String? = nil, date: Date) {
+        self.month = month
+        self.amount = amount
+        self.currency = currency
+        self.date = date
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        month = try container.decode(String.self, forKey: .month)
+        if let newAmount = try container.decodeIfPresent(Decimal.self, forKey: .amount) {
+            amount = newAmount
+        } else {
+            amount = try container.decode(Decimal.self, forKey: .amountUSD)
+        }
+        currency = try container.decodeIfPresent(String.self, forKey: .currency)
+        date = try container.decode(Date.self, forKey: .date)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(month, forKey: .month)
+        try container.encode(amount, forKey: .amount)
+        try container.encodeIfPresent(currency, forKey: .currency)
+        try container.encode(date, forKey: .date)
+    }
 }

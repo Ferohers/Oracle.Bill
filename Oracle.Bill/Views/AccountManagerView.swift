@@ -185,7 +185,7 @@ private struct AccountManagerRow: View {
 
                 Spacer()
 
-                Text(account.snapshot.map { MoneyFormatter.string(from: $0.amountUSD) } ?? "--")
+                Text(account.snapshot.map { MoneyFormatter.string(from: $0.amount, currency: $0.currency) } ?? "--")
                     .font(.system(.callout, design: .rounded, weight: .semibold))
                     .monospacedDigit()
             }
@@ -282,7 +282,7 @@ struct AccountDetailView: View {
                                 .truncationMode(.middle)
                         }
 
-                        if let currentSpend = account.snapshot?.amountUSD {
+                        if let currentSpend = account.snapshot {
                             Divider()
                                 .frame(height: 24)
 
@@ -290,7 +290,7 @@ struct AccountDetailView: View {
                                 Text("Current Spend")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                                Text(MoneyFormatter.string(from: currentSpend))
+                                Text(MoneyFormatter.string(from: currentSpend.amount, currency: currentSpend.currency))
                                     .font(.subheadline.weight(.bold))
                                     .foregroundStyle(.tint)
                             }
@@ -339,16 +339,16 @@ struct AccountDetailView: View {
                     } else if let points = store.historicalSpend[account.id], !points.isEmpty {
                         Chart {
                             ForEach(points) { point in
-                                BarMark(
-                                    x: .value("Month", point.month),
-                                    y: .value("Spend (\(MoneyFormatter.currencyCode))", Double(truncating: point.amountUSD as NSDecimalNumber))
-                                )
-                                .foregroundStyle(Color.accentColor.gradient)
-                                .annotation(position: .top, alignment: .center) {
-                                    Text(MoneyFormatter.string(from: point.amountUSD))
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                }
+                                    BarMark(
+                                        x: .value("Month", point.month),
+                                        y: .value("Spend (\(point.currency ?? MoneyFormatter.currencyCode))", Double(truncating: point.amount as NSDecimalNumber))
+                                    )
+                                    .foregroundStyle(Color.accentColor.gradient)
+                                    .annotation(position: .top, alignment: .center) {
+                                        Text(MoneyFormatter.string(from: point.amount, currency: point.currency))
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.secondary)
+                                    }
                             }
 
                             if let limit = account.warningAmountUSD, account.notificationsEnabled {
@@ -393,7 +393,7 @@ struct AccountDetailView: View {
                                     Text(store.displayName(for: resource, in: account))
                                         .font(.subheadline.weight(.medium))
                                     Spacer()
-                                    Text(MoneyFormatter.string(from: resource.amountUSD))
+                                Text(MoneyFormatter.string(from: resource.amount, currency: resource.currency))
                                         .font(.subheadline.monospacedDigit())
                                 }
                                 .padding(.vertical, 8)

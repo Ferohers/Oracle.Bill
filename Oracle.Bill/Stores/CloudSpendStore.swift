@@ -23,7 +23,9 @@ final class CloudSpendStore {
     var isFetchingHistory: [UUID: Bool] = [:]
     var historyError: [UUID: String] = [:]
 
-    var selectedCurrency: String = UserDefaults.standard.string(forKey: "selectedCurrency") ?? "EUR" {
+    /// Kept for backward compatibility only — no longer used to validate OCI response currency.
+    /// The actual currency is read from each account's CostSnapshot.currency field.
+    var selectedCurrency: String = UserDefaults.standard.string(forKey: "selectedCurrency") ?? "USD" {
         didSet {
             UserDefaults.standard.set(selectedCurrency, forKey: "selectedCurrency")
         }
@@ -43,12 +45,27 @@ final class CloudSpendStore {
 
     var totalSpend: Decimal {
         accounts.reduce(Decimal.zero) { result, account in
-            result + (account.snapshot?.amountUSD ?? Decimal.zero)
+            result + (account.snapshot?.amount ?? Decimal.zero)
         }
     }
 
+    /// The total spend formatted for display.
+    /// When all accounts share the same OCI billing currency that currency is used;
+    /// when accounts have different currencies (e.g. USD + SGD) the amounts cannot
+    /// be meaningfully summed, so we display each account's value separately.
     var totalSpendText: String {
-        MoneyFormatter.string(from: totalSpend)
+        let currencies = Set(accounts.compactMap { $0.snapshot?.currency })
+        if currencies.count == 1, let currency = currencies.first {
+            return MoneyFormatter.string(from: totalSpend, currency: currency)
+        } else if currencies.count > 1 {
+            // Mixed billing currencies — show per-account amounts instead of a misleading sum
+            return accounts.compactMap { account -> String? in
+                guard let snapshot = account.snapshot else { return nil }
+                return MoneyFormatter.string(from: snapshot.amount, currency: snapshot.currency)
+            }.joined(separator: " + ")
+        } else {
+            return MoneyFormatter.string(from: totalSpend, currency: nil)
+        }
     }
 
     var hasAccounts: Bool {

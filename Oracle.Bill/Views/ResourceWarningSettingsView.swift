@@ -25,7 +25,7 @@ struct ResourceWarningSettingsView: View {
                 HStack {
                     Text("Current spend")
                     Spacer()
-                    Text(MoneyFormatter.string(from: resource.amountUSD))
+                    Text(MoneyFormatter.string(from: resource.amount, currency: resource.currency))
                         .font(.system(.body, design: .rounded, weight: .semibold))
                         .monospacedDigit()
                 }

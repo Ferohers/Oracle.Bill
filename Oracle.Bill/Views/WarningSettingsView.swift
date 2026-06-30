@@ -13,7 +13,7 @@ struct WarningSettingsView: View {
                 Text(account.displayName)
                     .font(.title3.weight(.semibold))
                     .lineLimit(1)
-                Text("Set a monthly \(MoneyFormatter.currencyCode) warning for this account.")
+                Text("Set a monthly \(account.snapshot?.currency ?? MoneyFormatter.currencyCode) warning for this account.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -67,10 +67,10 @@ struct WarningSettingsView: View {
     }
 
     private var currentSpend: String {
-        guard let amount = account.snapshot?.amountUSD else {
+        guard let snapshot = account.snapshot else {
             return "--"
         }
 
-        return MoneyFormatter.string(from: amount)
+        return MoneyFormatter.string(from: snapshot.amount, currency: snapshot.currency)
     }
 }

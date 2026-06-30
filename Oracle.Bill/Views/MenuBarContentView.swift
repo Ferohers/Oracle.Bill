@@ -67,7 +67,7 @@ struct MenuBarContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("No Oracle accounts yet", systemImage: "cloud.fill")
                 .font(.headline)
-            Text("Add your Oracle config and private key to start tracking monthly USD spend.")
+            Text("Add your Oracle config and private key to start tracking monthly spend.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -152,7 +152,8 @@ private struct AccountSpendRow: View {
                     .monospacedDigit()
 
                 if let limit = warningAmount ?? accountWarningAmount {
-                    Label(MoneyFormatter.string(from: limit), systemImage: "bell")
+                    // Warning limits are stored in the account's billing currency
+                    Label(MoneyFormatter.string(from: limit, currency: account.snapshot?.currency), systemImage: "bell")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .labelStyle(.titleAndIcon)
@@ -165,12 +166,12 @@ private struct AccountSpendRow: View {
     }
 
     private var amountText: String {
-        if let amount = resource?.amountUSD {
-            return MoneyFormatter.string(from: amount)
+        if let resource {
+            return MoneyFormatter.string(from: resource.amount, currency: resource.currency)
         }
 
-        if let amount = account.snapshot?.amountUSD {
-            return MoneyFormatter.string(from: amount)
+        if let snapshot = account.snapshot {
+            return MoneyFormatter.string(from: snapshot.amount, currency: snapshot.currency)
         }
 
         return "--"
